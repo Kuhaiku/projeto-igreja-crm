@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// Enumerações para padronizar
+enum MemberStatus {
+  ATIVO
+  INATIVO
+  VISITANTE
+}
+
+enum TransactionType {
+  DIZIMO
+  OFERTA
+  CARNE_PAGAMENTO
+  SAIDA // Caso precise registrar despesas no futuro
+}
+
+model Member {
+  id          Int      @id @default(autoincrement())
+  nome        String
+  email       String?
+  telefone    String?
+  dataNasc    DateTime?
+  dataBatismo DateTime?
+  cargo       String   @default("Membro") // Ex: Diácono, Obreiro
+  fotoUrl     String?  // Cloudinary URL
+  status      MemberStatus @default(ATIVO)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  transactions Transaction[]
+  carnes       Carne[]
+}
+
+model Campaign {
+  id          Int      @id @default(autoincrement())
+  nome        String   // Ex: "Compra do Ônibus"
+  meta        Decimal  @db.Decimal(10, 2)
+  descricao   String?
+  dataInicio  DateTime @default(now())
+  dataFim     DateTime?
+  ativo       Boolean  @default(true)
+
+  carnes      Carne[]
+}
+
+model Carne {
+  id            Int      @id @default(autoincrement())
+  numeroControle Int     // Para o vínculo tardio (Ex: Carnê 054)
+  
+  // Vínculo Tardio: Member é opcional inicialmente
+  memberId      Int?
+  member        Member?  @relation(fields: [memberId], references: [id])
+  
+  campaignId    Int
+  campaign      Campaign @relation(fields: [campaignId], references: [id])
+  
+  valorSugerido Decimal? @db.Decimal(10, 2)
+  quitado       Boolean  @default(false)
+  
+  transactions  Transaction[]
+}
+
+model Transaction {
+  id          Int             @id @default(autoincrement())
+  tipo        TransactionType
+  valor       Decimal         @db.Decimal(10, 2)
+  observacao  String?
+  data        DateTime        @default(now())
+
+  // Relacionamentos
+  memberId    Int?            // Pode ser oferta anônima
+  member      Member?         @relation(fields: [memberId], references: [id])
+  
+  carneId     Int?
+  carne       Carne?          @relation(fields: [carneId], references: [id])
+}
